@@ -2,7 +2,7 @@
 * @Author: Konano
 * @Date:   2019-06-19 15:57:28
 * @Last Modified by:   Konano
-* @Last Modified time: 2019-06-24 21:21:46
+* @Last Modified time: 2019-06-24 21:55:12
 */
 
 #include "render.hpp"
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
     Vec cy = cx.cross(cam.d).norm()*.33;
     Vec *c = new Vec[w*h]; // image
 
-    cv::Mat img(h, w, CV_8UC3, cv::Scalar(0, 0, 0));
+    // cv::Mat img(h, w, CV_8UC3, cv::Scalar(0, 0, 0));
     // cv::imshow("test", img);
 
     // system("pause");
@@ -94,16 +94,16 @@ int main(int argc, char *argv[]) {
                     c[i] = c[i] + Vec(clamp(r.x), clamp(r.y), clamp(r.z))*.25;
                 }
             }
-            img.at<cv::Vec3b>(h-1-y, x)[2] = gamma(c[(h - y - 1)*w + x].x);
-            img.at<cv::Vec3b>(h-1-y, x)[1] = gamma(c[(h - y - 1)*w + x].y);
-            img.at<cv::Vec3b>(h-1-y, x)[0] = gamma(c[(h - y - 1)*w + x].z);
+            // img.at<cv::Vec3b>(h-1-y, x)[2] = gamma(c[(h - y - 1)*w + x].x);
+            // img.at<cv::Vec3b>(h-1-y, x)[1] = gamma(c[(h - y - 1)*w + x].y);
+            // img.at<cv::Vec3b>(h-1-y, x)[0] = gamma(c[(h - y - 1)*w + x].z);
             // if (omp_get_thread_num() == 0)
             // {
             //     cv::imshow("output", img);
             //     cv::waitKey(1);
             // }
         }
-        cv::imwrite(png_filename, img);
+        // cv::imwrite(png_filename, img);
     }
     // printf("\n%d: %d %d\n", NewtonTimes, counter, counter4);
     // for(int i=0; i<NewtonTimes; i++) printf("%03d Times: %d\n", i+1, NewtonCounter[NewtonTimes-i]);
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
         fprintf(f, "%d %d %d ", gamma(c[i].x), gamma(c[i].y), gamma(c[i].z));
 
     // Save the image.
-    cv::imwrite(png_filename, img);
+    // cv::imwrite(png_filename, img);
     // cv::imshow("output", img);
     // cv::waitKey(0);
 
