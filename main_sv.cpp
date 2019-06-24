@@ -2,7 +2,7 @@
 * @Author: Konano
 * @Date:   2019-06-19 15:57:28
 * @Last Modified by:   Konano
-* @Last Modified time: 2019-06-24 21:20:40
+* @Last Modified time: 2019-06-24 21:21:46
 */
 
 #include "render.hpp"
@@ -97,11 +97,11 @@ int main(int argc, char *argv[]) {
             img.at<cv::Vec3b>(h-1-y, x)[2] = gamma(c[(h - y - 1)*w + x].x);
             img.at<cv::Vec3b>(h-1-y, x)[1] = gamma(c[(h - y - 1)*w + x].y);
             img.at<cv::Vec3b>(h-1-y, x)[0] = gamma(c[(h - y - 1)*w + x].z);
-            if (omp_get_thread_num() == 0)
-            {
-                cv::imshow("output", img);
-                cv::waitKey(1);
-            }
+            // if (omp_get_thread_num() == 0)
+            // {
+            //     cv::imshow("output", img);
+            //     cv::waitKey(1);
+            // }
         }
         cv::imwrite(png_filename, img);
     }
@@ -116,8 +116,8 @@ int main(int argc, char *argv[]) {
 
     // Save the image.
     cv::imwrite(png_filename, img);
-    cv::imshow("output", img);
-    cv::waitKey(0);
+    // cv::imshow("output", img);
+    // cv::waitKey(0);
 
     // Show the image, wait for user keystroke and quit.
     // cv::imshow("output", img);
