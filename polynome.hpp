@@ -76,7 +76,7 @@ public:
     double solve(double v, double l = 0, double r = 1) const {
         // Sepcial for y
         double mid;
-        for (int i=20; i; i--) {
+        for (int i=40; i; i--) {
             mid = (l+r) / 2;
             if (calc(mid) < v) l = mid; else r = mid;
         }
@@ -85,6 +85,11 @@ public:
     void print() const {
         for(int i = 0; i < len; i++) printf("%.12lf%c", v[i], i==len-1?'\n':' ');
     }
+    // bool constant() const {
+    //     double sum = 0;
+    //     for(int i = 1; i < len; i++) sum += v[i];
+    //     return sum == 0;
+    // }
 };
 
 #endif

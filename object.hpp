@@ -12,25 +12,27 @@
 #include "vec3.hpp"
 #include "ray.hpp"
 #include "bezier.hpp"
+#include "texture.hpp"
 
 class Object {
 public:
     Vec e;     // emission
-    Vec c;     // color
     Refl_t ty; // material
+    Texture texture;
 
-    Object(Vec _e, Vec _c, Refl_t _ty) : e(_e), c(_c), ty(_ty) {}
+    Object(Vec _e, Vec _c, Refl_t _ty, std::string tname) : e(_e), ty(_ty), texture(tname, _c) {}
 
     virtual double intersect(const Ray&) const { puts("virtual error in intersect!"); }
     virtual Vec norm(const Vec&) const { puts("virtual error in norm!"); }
+    virtual Vec getpos(const Vec&) const { puts("virtual error in getpos!"); }
 };
 
 class Sphere : public Object {
 public:
     double r;  // radius
     Vec pos;   // position
-    Sphere(double _r, Vec _p, Vec _e, Vec _c, Refl_t _ty) :
-        Object(_e, _c, _ty), r(_r), pos(_p) {}
+    Sphere(double _r, Vec _p, Vec _e, Vec _c, Refl_t _ty, std::string tname = "") :
+        Object(_e, _c, _ty, tname), r(_r), pos(_p) {}
 
     virtual double intersect(const Ray& ray) const {
         Vec dis = ray.o - pos;
@@ -53,8 +55,8 @@ public:
 class Plane : public Object {
 public:
     Vec n, n0;     // store ax+by+cz=1 n=(a,b,c)
-    Plane(Vec _n, Vec _e, Vec _c, Refl_t _ty) :
-        Object(_e, _c, _ty), n(_n), n0(_n.norm()) {}
+    Plane(Vec _n, Vec _e, Vec _c, Refl_t _ty, std::string tname = "") :
+        Object(_e, _c, _ty, tname), n(_n), n0(_n.norm()) {}
 
     virtual double intersect(const Ray &ray) const {
         double t = (1 - ray.o.dot(n)) / ray.d.dot(n);
@@ -72,20 +74,25 @@ class Bezier : public Object {
 public:
     BezierCurve2D curve;
     Vec pos; // the buttom center point
-    Bezier(Vec _p, BezierCurve2D _c, Vec _e, Vec _col, Refl_t _ty) :
-        Object(_e, _col, _ty), curve(_c), pos(_p) {}
+    Bezier(Vec _p, BezierCurve2D _c, Vec _e, Vec _col, Refl_t _ty, std::string tname = "") :
+        Object(_e, _col, _ty, tname), curve(_c), pos(_p) {}
+    Vec getpos(const Vec& o) const {
+        double t = curve.dy.solve(o.y - pos.y);
+        double u = atan2(o.z - pos.z, o.x - pos.x);
+        if (u < 0) u += 2 * PI;
+        return Vec(u, t);
+    }
     virtual double intersect(const Ray &_ray) const {
         Ray ray = _ray; // copy
         ray.o -= pos;
-        double final_t;
-        // if (Bezier_debug) std::cout << ray.dis_to_axis() << std::endl;
-        if (ray.dis_to_axis(0., curve.height) > sqr(curve.width)) return 0;
+        double final_t, L, R; bool inside;
+        if (ray.in_axis_range(0., curve.height, curve.width, curve.width_mn, L, R, inside) == false) return 0;
 
-        if (fabs(ray.d.y) < 1e-5) {
+        if (fabs(ray.d.y) < 1e-4) {
             // if (Bezier_debug) ray.print();
             // if (Bezier_debug) printf("%.6lf %.6lf\n", fabs(ray.d.y), ray.d.y);
             double hit = ray.o.y;
-            for (int i = 0; i <= 2; i++) {
+            for (int i = 0; i <= 3; i++) {
                 if (hit < eps || hit > curve.height - eps) return 0;
                 // if (Bezier_debug) puts("pass 1");
                 double t = curve.dy.solve(hit);
@@ -141,7 +148,17 @@ public:
             // if (Bezier_debug) pos.print();
             // if (Bezier_debug) k.print();
             double ansx;
-            if (solve_Newton(poly, ray, ansx, final_t) == false) return 0;
+            double y0 = curve.dy.solve(ray.pos(L).y-eps);
+            double y1 = curve.dy.solve(ray.pos(R).y+eps);
+            if (inside && (fabs(ray.d.y) < 1e-2)) {
+                if (poly.calc(y0-(y1-y0)) < 0 || poly.calc(y1) > 0) {
+                    printf("solve_binary %.12lf %.12lf\n", poly.calc(y0-(y1-y0)), poly.calc(y1));
+                    return 0;
+                } else
+                    if (solve_binary(poly, ray, ansx, final_t, y0-(y1-y0), y1) == false) return 0;
+            } else {
+                if (solve_Newton(poly, ray, ansx, final_t, y0-.1, y1+.1) == false) return 0;
+            }
 
             // for (int i = 1; i <= n-1; i++)
             //     if (ray.dis_to_axis(curve.data[i-1].y0, curve.data[i-1].y1) < curve.data[i-1].width) {
@@ -150,6 +167,7 @@ public:
 
 
             if (Bezier_debug) {
+                // puts("pass 161");
                 if (fabs(sqrt(sqr(ray.pos(final_t).x) + sqr(ray.pos(final_t).z)) - curve.dx.calc(ansx)) > 1e-2) {
                     // counter3++;
                     printf("%.12lf\n", fabs(sqrt(sqr(ray.pos(final_t).x) + sqr(ray.pos(final_t).z)) - curve.dx.calc(ansx)));
@@ -167,27 +185,44 @@ public:
         }
         return final_t;
     }
+
+    bool solve_binary(Polynome &poly, Ray &ray, double &ansx, double &t, double l = 0, double r = 1) const {
+        if (poly.calc(l) < 0 || poly.calc(r) > 0)
+            puts("BUG");
+        double mid;
+        for (int i = 20; i--;)
+            if (poly.calc(mid = (l+r)/2) < 0)
+                r = mid;
+            else
+                l = mid;
+        ansx = l;
+        t = (curve.dy.calc(ansx)-ray.o.y)/ray.d.y;
+        return true;
+    }
     bool solve_Newton(Polynome &poly, Ray &ray, double &ansx, double &t, double l = 0, double r = 1) const {
         // if (Bezier_debug) puts("solve_Newton");
 
         t = 1e20;
         bool fg = false;
         double x = _rand() * (r-l) + l, fx, dx, tmp; //int last = 0;
-        for(int i = NewtonTimes; i; i--) {
+        // if (poly.constant()) return false;
+        for(int i = NewtonTimes, times = 0; i; i--) {
             while (fabs(fx = poly.calc(x)) < eps || fabs(dx = poly.deriv(x)) < eps) {
                 // if (Bezier_debug) printf("%.3lf %.3lf %.3lf\n", x, fx, dx);
-                if (fabs(fx) < eps)
+                if (fabs(fx) < eps) {
                     if ((tmp = (curve.dy.calc(x)-ray.o.y)/ray.d.y) > eps && tmp < t) {
                         // if (fg && t - tmp > 1e-2) counter2++;
                         // if (t - tmp > 1e-2) last = i;
                         ansx = x, t = tmp, (ray.d.y > 0 ? r : l) = x, fg = true;
                     }
+                }
+                if (++times == 50) return false;
                 x = _rand() * (r-l) + l;
             }
             x -= fx / dx;
-            if (x < l || x > r) x = _rand() * (r-l) + l;
+            if (x < 0 || x > 1) x = _rand() * (r-l) + l;
         }
-        // if (fg) counter++, NewtonCounter[last]++; counter4++;
+        // if (fg) counter++; counter4++;
         // if (Bezier_debug && fg) poly.print();
         // if (Bezier_debug && fg) puts("solve_Newton out");
         return fg;

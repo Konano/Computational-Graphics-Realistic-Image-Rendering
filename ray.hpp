@@ -15,21 +15,41 @@ struct Ray {
     Vec o, d; // origin, direct
     Ray(Vec _o, Vec _d) : o(_o), d(_d) {}
     Vec pos(double t) const { return o + d*t; }
-    double dis_to_axis(double l, double r) const {
+    bool in_axis_range(double l, double r, double radmx, double radmn, double &L, double &R, bool &inside) const {
         if (d.y == 0)
-            l = -1e20, r = 1e20;
+            L = 0, R = 1e20;
         else
-            l = (l - o.y) / d.y, r = (r - o.y) / d.y;
-        if (l > r) std::swap(l, r);
+            L = (l - o.y) / d.y, R = (r - o.y) / d.y;
+        if (L > R) std::swap(L, R);
+        if (L < 0) L = 0;
 
         if (sqr(d.x)+sqr(d.z) == 0)
-            return sqr(o.x)+sqr(o.z);
+            return sqr(o.x)+sqr(o.z) < sqr(radmx);
+
+        double dis;
+
         double p = -(o.x*d.x+o.z*d.z)/(sqr(d.x)+sqr(d.z));
-        if (p < l)
-            return sqr(pos(l).x)+sqr(pos(l).z);
-        if (r < p)
-            return sqr(pos(p).x)+sqr(pos(p).z);
-        return sqr(o.x)+sqr(o.z)-sqr(o.x*d.x+o.z*d.z)/(sqr(d.x)+sqr(d.z));
+        if (p < L)
+            dis = sqr(pos(L).x)+sqr(pos(L).z);
+        else if (R < p)
+            dis = sqr(pos(R).x)+sqr(pos(R).z);
+        else
+            dis = sqr(o.x)+sqr(o.z)-sqr(o.x*d.x+o.z*d.z)/(sqr(d.x)+sqr(d.z));
+        if (dis > sqr(radmx)) return false;
+
+        double L0 = p - sqrt(p*p - (sqr(o.x)+sqr(o.z)-sqr(radmx))/(sqr(d.x)+sqr(d.z)));
+        double R0 = p + sqrt(p*p - (sqr(o.x)+sqr(o.z)-sqr(radmx))/(sqr(d.x)+sqr(d.z)));
+        if (L < L0 - eps && dis < sqr(radmn)) {
+            L = std::max(L, L0);
+            R = std::min(R, p);
+            inside = true;
+        } else {
+            L = std::max(L, L0);
+            R = std::min(R, R0);
+            inside = false;
+        }
+
+        return true;
     }
     void print() const {
         printf("ray.o: "); o.print();

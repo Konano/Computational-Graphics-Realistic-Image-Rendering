@@ -18,6 +18,7 @@ struct Vec {
     Vec operator-(const Vec& b) const { return Vec(x - b.x, y - b.y, z - b.z); }
     Vec &operator-=(const Vec &b) { x -= b.x, y -= b.y, z -= b.z; return *this;}
     Vec operator*(double b) const { return Vec(x * b, y * b, z * b); }
+    Vec operator/(double b) const { return Vec(x / b, y / b, z / b); }
     Vec mult(const Vec &b) const { return Vec(x * b.x, y * b.y, z * b.z); }
     double dot(const Vec &b) const { return x * b.x + y * b.y + z * b.z; }
     Vec cross(const Vec &b) const { return Vec(y * b.z - z * b.y, z * b.x - x * b.z, x * b.y - y * b.x); }

@@ -14,7 +14,7 @@
 class BezierCurve2D {
 public:
     Polynome dx, dy;
-    double height, width;
+    double height, width, width_mn;
     int n;
     // int num; double r;
     // struct D {
@@ -34,9 +34,11 @@ public:
         height = dy.calc(1);
 
         width = 0;
+        width_mn = 1e20;
         for (double t = 0; t <= 1; t += 0.00001) {
             Vec pos = getpos(t);
             if (width < pos.x) width = pos.x;
+            if (width_mn > pos.x) width_mn = pos.x;
         }
 
         // width = 0;

@@ -15,38 +15,53 @@ Vec radiance(const Ray &r, int depth, bool debug = false) {
     if (debug) printf("depth: %d\n", depth);
     double t;
     int id = 0;
-    if (!intersect(r, t, id, (depth==8)&&debug))
+    if (!intersect(r, t, id, depth==0 && debug))
         return Vec();
+    if (debug) printf("t: %.6lf, id: %d\n", t, id);
     const Object *obj = objects[id];
     Vec x = r.o + r.d*t;
     // Vec n = (x - obj.p).norm();
     Vec n = obj->norm(x);
     Vec nl = n.dot(r.d) < 0 ? n : n * -1; // nl 与 d 异向
-    Vec f = obj->c; // 反射率
+    Feature ft = feature(obj, x);
+    Vec f = ft.col; // 反射率
+    // if (id == 6) f.print();
+    if (debug) r.print(), x.print(), n.print(), nl.print(), f.print();
     double p = f.max(); // 颜色最大值
     if (debug) puts("pass 28");
     if (++depth > 5 || !p) {
         if (_rand() < p)
             f = f * (1 / p);
         else
-            return obj->e;
+            // return obj->e;
+            {if (debug) obj->e.print();return obj->e;}
     }
     if (debug) puts("pass 35");
-    switch (obj->ty) {
+    switch (ft.rf) {
         case DIFF: {
-            if (debug) puts("pass DIFF");
             double r1 = 2 * M_PI * _rand(), r2 = _rand(), r2s = sqrt(r2);
             Vec w = nl, u = (fabs(w.x) > .1 ? Vec(0, 1) : Vec(1)).cross(w).norm(), v = w.cross(u); // 正交基
             Vec d = (u*cos(r1)*r2s + v*sin(r1)*r2s + w*sqrt(1 - r2)).norm();
+            if (debug) {
+                puts("pass DIFF");
+                Vec ans = obj->e + f.mult(radiance(Ray(x, d), depth, debug));
+                ans.print();
+                return ans;
+            }
             return obj->e + f.mult(radiance(Ray(x, d), depth, debug));
         }
         case SPEC: {
-            if (debug) puts("pass SPEC");
+            if (debug) {
+                puts("pass SPEC");
+                Vec ans = obj->e + f.mult(radiance(Ray(x, r.d-n*2*n.dot(r.d)), depth, debug));
+                ans.print();
+                return ans;
+            }
             // return obj->e + f.mult(radiance(Ray(x, r.d-n*2*n.dot(r.d)), depth));
             return obj->e + f.mult(radiance(Ray(x, r.d-n*2*n.dot(r.d)), depth, debug));
         }
         case REFR: {
-            puts("pass REFR");
+            if (debug) puts("pass REFR");
             Ray reflRay(x, r.d - n * 2 * n.dot(r.d)); // 反射光
             bool into = n.dot(nl)>0;  // 光线是否是进入球体
             double nc = 1, nt = 1.5, nnt = into ? nc / nt : nt / nc, ddn = r.d.dot(nl), cos2t; // nnt：折射率，ddn：入射角cos
