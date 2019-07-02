@@ -2,7 +2,7 @@
 * @Author: Konano
 * @Date:   2019-06-19 15:57:28
 * @Last Modified by:   Konano
-* @Last Modified time: 2019-06-30 22:42:47
+* @Last Modified time: 2019-07-02 21:23:58
 */
 
 // #define __OPENCV
@@ -35,7 +35,7 @@ int sppm(int argc, char *argv[]) {
     Ray cam(Vec(600, 50, 140), Vec(-1, 0.01, -0.1).norm()); // camera
     Vec cx = Vec(0.,0.,-w*.33 / h);
     Vec cy = cx.cross(cam.d).norm()*.33;
-    double focusZ = -80; // 焦平面
+    double focusZ = -80;
     double aperture = 0;
 
     Vec *canvas = new Vec[w*h]; // image
@@ -156,7 +156,7 @@ int pt(int argc, char *argv[]) {
     Ray cam(Vec(50, 52, 295.6), Vec(0, -0.042612, -1).norm()); // camera
     Vec cx = Vec(w*.33 / h);
     Vec cy = cx.cross(cam.d).norm()*.33;
-    double focusZ = 80; // 焦平面
+    double focusZ = 80;
     double aperture = 1;
 
     // Ray cam(Vec(600, 50, 140), Vec(-1, 0.01, -0.1).norm()); // camera

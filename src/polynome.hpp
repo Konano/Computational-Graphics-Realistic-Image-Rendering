@@ -85,11 +85,6 @@ public:
     void print() const {
         for(int i = 0; i < len; i++) printf("%.12lf%c", v[i], i==len-1?'\n':' ');
     }
-    // bool constant() const {
-    //     double sum = 0;
-    //     for(int i = 1; i < len; i++) sum += v[i];
-    //     return sum == 0;
-    // }
 };
 
 #endif

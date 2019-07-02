@@ -79,17 +79,13 @@ const double LightX = 160;
 const double LightY = 200;
 const double LightZ = 120;
 
-inline bool intersect(const Ray &R, Vec &x, Vec &n, int &id, unsigned short* X, bool debug = false) {
+inline bool intersect(const Ray &R, Vec &x, Vec &n, int &id, unsigned short* X) {
     double d, inf = 1e20, t = 1e20; Vec x0, n0;
     for(int i = objects_num; i--;) {
-        // if (debug) puts("intersect.in"), Bezier_debug = true;
         d = objects[i]->intersect(R, x0, n0, X);
-        // if (debug) puts("intersect.out"), Bezier_debug = false;
         if (d && d < t)
-        // if ((d = objects[i]->intersect(R)) && d < t)
             t = d, id = i, x = x0, n = n0;
     }
-    // if (debug) puts("Exit");
     return t < inf;
 }
 
@@ -102,9 +98,6 @@ Feature feature(const Object* obj, Vec o, unsigned short* X) {
                            SPEC);
         return Feature(texture.getcol(tmp.x/2/PI+.5, tmp.y),
                        obj->ty);
-
-        // return Feature(texture.getcol(tmp.x/2/PI+.5, tmp.y),
-        //                erand48(X) < 0.2 ? SPEC : obj->ty);
     }
     if (texture.filename == "wall_right.jpg") {
         return Feature(texture.getcol(-o.x*12/3143, -o.y*12/1834),
@@ -125,34 +118,21 @@ Feature feature(const Object* obj, Vec o, unsigned short* X) {
     if (texture.filename == "cueball.png") {
         o = (o - Vec(111, 15, 132+25)) / 14;
         o.norm();
-        // std::cout << o.len();
         Vec x = Vec(11, 45, 14).norm(); // e chou
         Vec y = x.cross(Vec(19, 19, 81).norm()).norm();
         Vec z = y.cross(x).norm();
-        // Vec x = Vec(0,1,0);
-        // Vec y = Vec(1,0,0);
-        // Vec z = Vec(0,0,1);
-        // printf("%.6lf\n", acos(o.dot(z)));
         if (erand48(X) < 0.02)
             return Feature(Vec(1,1,1)*.999,
                            SPEC);
         return Feature(texture.getcol(o.dot(x)*.5+.5, o.dot(z)*.5+.5),
                        obj->ty);
-
-        // return Feature(texture.getcol(o.dot(x)*.5+.5, o.dot(z)*.5+.5),
-        //                erand48(X) < 0.32 ? SPEC : obj->ty);
     }
     if (texture.filename == "ball.jpg") {
         o = (o - Vec(86, 26, 97)) / 25;
         o.norm();
-        // std::cout << o.len();
         Vec x = Vec(114, 51, 41).norm(); // e chou
         Vec y = x.cross(Vec(91, 91, 80).norm()).norm();
         Vec z = y.cross(x).norm();
-        // Vec x = Vec(0,1,0);
-        // Vec y = Vec(1,0,0);
-        // Vec z = Vec(0,0,1);
-        // printf("%.6lf\n", acos(o.dot(z)));
         return Feature(texture.getcol(acos(o.dot(z))/PI+0.5, atan(o.dot(y)/o.dot(x))/2/PI),
                        obj->ty);
     }
@@ -184,8 +164,6 @@ Feature feature(const Object* obj, Vec o, unsigned short* X) {
     return Feature(texture.color,
                    obj->ty);
 }
-
-
 
 inline Ray generateRay(unsigned short* X) {
 

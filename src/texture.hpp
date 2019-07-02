@@ -14,14 +14,12 @@ public:
             buf = stbi_load(filename.c_str(), &w, &h, &c, 0);
         else
             buf = NULL;
-        // printf("%d %d %d\n", w, h, c);
     }
     Texture(std::string tname, Vec col): color(col), filename(tname) {
         if(tname != "")
             buf = stbi_load(filename.c_str(), &w, &h, &c, 0);
         else
             buf = NULL;
-        // printf("%d %d %d\n", w, h, c);
     }
     Vec getcol(double a, double b) const {
         if (buf == NULL)
