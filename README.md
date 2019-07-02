@@ -4,11 +4,11 @@
 
 Path Tracing:
 
-![pt](.\pic\pt.png)
+![pt](https://github.com/Konano/Computational-Graphics-Realistic-Image-Rendering/blob/master/pic/pt.png)
 
 Stochastic Progressive Photon Mapping:
 
-![sppm](.\pic\sppm.png)
+![sppm](https://github.com/Konano/Computational-Graphics-Realistic-Image-Rendering/blob/master/pic/sppm.png)
 
 ## Todo (Nei Juan)
 
