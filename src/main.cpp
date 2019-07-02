@@ -2,32 +2,135 @@
 * @Author: Konano
 * @Date:   2019-06-19 15:57:28
 * @Last Modified by:   Konano
-* @Last Modified time: 2019-06-27 01:09:03
+* @Last Modified time: 2019-06-30 22:42:47
 */
 
 // #define __OPENCV
 
 #include "render.hpp"
 
-// void test() {
+void save(char* filename, int w, int h, Vec* canvas) {
+    FILE *f = fopen(filename, "w");         // Write image to PPM file.
+    fprintf(f, "P3\n%d %d\n%d\n", w, h, 255);
+    for (int i = 0; i < w*h; i++)
+        fprintf(f, "%d %d %d ", _gamma(canvas[i].x), _gamma(canvas[i].y), _gamma(canvas[i].z));
+    fclose(f);
+    fprintf(stderr, "Image saved to %s\n", filename);
+}
 
-//     int h = objects[6]->texture.h;
-//     int w = objects[6]->texture.w;
+int sppm(int argc, char *argv[]) {
 
-//     cv::Mat img(h, w, CV_8UC3, cv::Scalar(0, 0, 0));
-//     for(int y = 0; y < h; y++)
-//         for(int x = 0; x < w; x++)
-//         {
-//             Vec tmp = objects[6]->texture.getcol(1./w*x, 1./h*y);
-//             img.at<cv::Vec3b>(y, x)[0] = std::min(int(tmp.x * 255 + 0.5), 255);
-//             img.at<cv::Vec3b>(y, x)[1] = std::min(int(tmp.y * 255 + 0.5), 255);
-//             img.at<cv::Vec3b>(y, x)[2] = std::min(int(tmp.z * 255 + 0.5), 255);
-//         }
-//     cv::imshow("output", img);
-//     cv::waitKey(0);
-// }
+    int samps = (argc>=2 ? atoi(argv[1]) : 2000);
+    int numRounds = (argc>=3 ? atoi(argv[2]) : 1);
+    char* png_filename = cat(argc>=4 ? argv[3] : "output", ".png");
+    char* ppm_filename = cat(argc>=4 ? argv[3] : "output", ".ppm");
+    int w = (argc>=6 ? atoi(argv[4]) : 640);
+    int h = (argc>=6 ? atoi(argv[5]) : 360);
+    int x0 = (argc>=10 ? atoi(argv[6]) : 0);
+    int y0 = (argc>=10 ? atoi(argv[7]) : 0);
+    int dx = (argc>=10 ? atoi(argv[8]) : w);
+    int dy = (argc>=10 ? atoi(argv[9]) : h); y0 = h - (y0+dy);
 
-int main(int argc, char *argv[]) {
+
+    Ray cam(Vec(600, 50, 140), Vec(-1, 0.01, -0.1).norm()); // camera
+    Vec cx = Vec(0.,0.,-w*.33 / h);
+    Vec cy = cx.cross(cam.d).norm()*.33;
+    double focusZ = -80; // 焦平面
+    double aperture = 0;
+
+    Vec *canvas = new Vec[w*h]; // image
+
+#ifdef __OPENCV
+    cv::Mat img(h, w, CV_8UC3, cv::Scalar(0, 0, 0));
+#endif
+
+    double clock_start = omp_get_wtime(); // Start time
+
+    std::vector<HitPoint*> hitpoints;
+    rep(i, h*w) hitpoints.push_back(new HitPoint);
+
+    int nth = omp_get_num_procs();
+    rep(round, numRounds) {
+        int sec = (omp_get_wtime() - clock_start) / (round+1) * (numRounds-round);
+        fprintf(stderr, "Round %d/%d, remain: %02d h %02d m %02d s:\n", round + 1, numRounds, sec/3600, (sec%3600)/60, sec%60);
+
+        // ray tracing pass
+#pragma omp parallel for schedule(dynamic, 1), num_threads(nth)
+        rep(y, h) {
+            unsigned short X[3] = {(su)(y), (su)(round), (su)(round*y)};
+            rep(x, w) {
+                double r1 = 2 * erand48(X), dx = r1 < 1 ? sqrt(r1) - 1 : 1 - sqrt(2 - r1);
+                double r2 = 2 * erand48(X), dy = r2 < 1 ? sqrt(r2) - 1 : 1 - sqrt(2 - r2);
+                Vec d = cx * (((floor(2*erand48(X)) + .5 + dx) / 2 + x) / w - .5) +
+                        cy * (((floor(2*erand48(X)) + .5 + dy) / 2 + y) / h - .5) + cam.d;
+
+                hitpoints[(h-1-y)*w+x]->valid = false;
+
+                trace(Ray(cam.o+d*140, d.norm()), Vec(1,1,1), 0, X, hitpoints[(h-1-y)*w+x]);
+            }
+        }
+        fprintf(stderr, "Ray tracing pass\n");
+
+        initializeHitpointKDTree(hitpoints);
+
+        fprintf(stderr, "Hitpoint KD tree built\n");
+
+        // photon tracing pass
+#pragma omp parallel for schedule(dynamic, 1), num_threads(nth)
+        for (int i = 0; i < samps; ++i) {
+            unsigned short X[3] = {(su)(round*samps), (su)(1LL*i*i), (su)(round*i)};
+            trace(generateRay(X), Vec(4e4,4e4,4e4), 0, X);
+        }
+        fprintf(stderr, "\rPhoton tracing pass done\n");
+
+        if ((round + 1) % checkpoint_interval == 0) {
+            rep(i, h*w) {
+                HitPoint *hp = hitpoints[i];
+                canvas[i] = hp->flux / (M_PI * hp->r2 * samps * (round + 1)) + hp->fluxLight / (round + 1);
+                canvas[i].clp();
+            }
+#ifdef __OPENCV
+            rep(y, h) rep(x, w) {
+                img.at<cv::Vec3b>(h-1-y, x)[2] = _gamma(canvas[(h-1-y)*w+x].x);
+                img.at<cv::Vec3b>(h-1-y, x)[1] = _gamma(canvas[(h-1-y)*w+x].y);
+                img.at<cv::Vec3b>(h-1-y, x)[0] = _gamma(canvas[(h-1-y)*w+x].z);
+            }
+            cv::imshow("output", img);
+            cv::waitKey(1);
+#endif
+            char filename[100];
+            sprintf(filename, "checkpoint/%d.ppm", round + 1);
+            save(filename, w, h, canvas);
+        }
+    }
+
+    printf("\n%f sec", omp_get_wtime() - clock_start);
+
+    rep(i, h*w) {
+        HitPoint *hp = hitpoints[i];
+        canvas[i] = hp->flux / (M_PI * hp->r2 * samps * numRounds) + hp->fluxLight / numRounds;
+        canvas[i].clp();
+    }
+    save(ppm_filename, w, h, canvas);
+
+#ifdef __OPENCV
+    // Save the image.
+    cv::imwrite(png_filename, img);
+    cv::imshow("output", img);
+    // cv::waitKey(0);
+
+    // Show the image, wait for user keystroke and quit.
+    // cv::imshow("output", img);
+    // cv::waitKey(0);
+    // cv::destroyAllWindows();
+    // system("pause");
+#endif
+
+    return 0;
+}
+
+/*
+int pt(int argc, char *argv[]) {
 
     // printf("%.6lf\n", _rand());
 
@@ -149,4 +252,10 @@ int main(int argc, char *argv[]) {
     // system("pause");
 #endif
     return 0;
+}
+*/
+
+int main(int argc, char *argv[])
+{
+    return sppm(argc, argv);
 }

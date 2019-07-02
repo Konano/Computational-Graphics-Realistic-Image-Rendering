@@ -21,7 +21,7 @@ public:
             buf = stbi_load(filename.c_str(), &w, &h, &c, 0);
         else
             buf = NULL;
-        printf("%d %d %d\n", w, h, c);
+        // printf("%d %d %d\n", w, h, c);
     }
     Vec getcol(double a, double b) const {
         if (buf == NULL)

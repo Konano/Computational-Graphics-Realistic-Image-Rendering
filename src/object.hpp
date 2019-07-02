@@ -13,6 +13,7 @@
 #include "ray.hpp"
 #include "bezier.hpp"
 #include "texture.hpp"
+#include "kdtree.hpp"
 
 class Object {
 public:
@@ -21,9 +22,7 @@ public:
     Texture texture;
 
     Object(Vec _e, Vec _c, Refl_t _ty, std::string tname) : e(_e), ty(_ty), texture(tname, _c) {}
-
-    virtual double intersect(const Ray&, unsigned short*) const { puts("virtual error in intersect!"); }
-    virtual Vec norm(const Vec&) const { puts("virtual error in norm!"); }
+    virtual double intersect(const Ray&, Vec &x, Vec &n, unsigned short*) const { puts("virtual error in intersect!"); }
     virtual Vec getpos(const Vec&) const { puts("virtual error in getpos!"); }
 };
 
@@ -34,7 +33,7 @@ public:
     Sphere(double _r, Vec _p, Vec _e, Vec _c, Refl_t _ty, std::string tname = "") :
         Object(_e, _c, _ty, tname), r(_r), pos(_p) {}
 
-    virtual double intersect(const Ray& ray, unsigned short*) const {
+    virtual double intersect(const Ray& ray, Vec &x, Vec &n, unsigned short*) const {
         Vec dis = ray.o - pos;
         double a = ray.d.dot(ray.d);
         double b = (ray.d * 2).dot(dis);
@@ -44,12 +43,34 @@ public:
         double t1 = (- b - sqrt(detal)) / 2 / a;
         double t2 = (- b + sqrt(detal)) / 2 / a;
         // if (t1 <= eps) printf("intersect %.12lf\n", t1);
-        if (t1 > eps) return t1;
-        else if (t2 > eps) return t2;
+        double t;
+        if (t1 > eps) t = t1;
+        else if (t2 > eps) t = t2;
         else return 0;
+        x = ray.pos(t);
+        n = (x - pos).norm();
+        return t;
     } // Solve t^2*d.d + 2*t*(o-p).d + (o-p).(o-p)-R^2 = 0
-    virtual Vec norm(const Vec& x) const {
-        return (x - pos).norm();
+};
+
+class Mesh : public Object {
+public:
+    Vec pos;
+    std::vector<Face*> faces;
+    MeshKDTree* meshKDTree;
+    Mesh(Vec _p, double ratio, Vec _e, Vec _c, Refl_t _ty, std::string obj) :
+        Object(_e, _c, _ty, ""), pos(_p) {
+            loadOBJ(obj, ratio, pos, faces);
+            meshKDTree = new MeshKDTree(faces);
+        }
+
+    virtual double intersect(const Ray &ray, Vec &x, Vec &_n, unsigned short*) const {
+        if (meshKDTree->getCuboidIntersection(meshKDTree->root, ray) > 1e10)
+            return 0;
+        double t = 1e100;
+        meshKDTree->getIntersection(meshKDTree->root, ray, t, _n);
+        x = ray.pos(t);
+        return t;
     }
 };
 
@@ -59,14 +80,16 @@ public:
     Plane(Vec _n, Vec _e, Vec _c, Refl_t _ty, std::string tname = "") :
         Object(_e, _c, _ty, tname), n(_n), n0(_n.norm()) {}
 
-    virtual double intersect(const Ray &ray, unsigned short*) const {
+    virtual double intersect(const Ray &ray, Vec &x, Vec &_n, unsigned short*) const {
         double t = (1 - ray.o.dot(n)) / ray.d.dot(n);
         if (t < eps) return 0;
+        x = ray.pos(t);
+        _n = n0;
         return t;
     }
-    virtual Vec norm(const Vec&) const {
-        return n0;
-    }
+    // virtual Vec norm(const Vec&) const {
+    //     return n0;
+    // }
 };
 
 bool Bezier_debug = true;
@@ -83,7 +106,7 @@ public:
         if (u < 0) u += 2 * PI;
         return Vec(u, t);
     }
-    virtual double intersect(const Ray &_ray, unsigned short *X) const {
+    virtual double intersect(const Ray &_ray, Vec &x, Vec &n, unsigned short *X) const {
         Ray ray = _ray; // copy
         ray.o -= pos;
         double final_t, L, R; bool inside;
@@ -182,8 +205,9 @@ public:
                     // poly.print();
                 }
             }
-
         }
+        x = _ray.pos(final_t);
+        n = norm(x);
         return final_t;
     }
 
@@ -238,7 +262,7 @@ public:
         // if (Bezier_debug && fg) puts("solve_Newton out");
         return fg;
     }
-    virtual Vec norm(const Vec& _v) const {
+    Vec norm(const Vec& _v) const {
         Vec V = _v - pos;
         double t = curve.dy.solve(V.y);
         double dx = curve.dx.deriv(t);

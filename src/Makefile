@@ -7,6 +7,7 @@ endif
 
 CPP = g++
 CPPFLAGSOPENMP = -fopenmp
+CPPFLAGSC11    = -std=c++11
 CPPFLAGSGDB    = -g
 CPPFLAGSO3     = -O3
 CPPFLAGSDEBUG  = -Wall -Wextra
@@ -17,12 +18,16 @@ ifeq ($(detected_OS),Windows)
 	CPPFLAGS = $(CPPFLAGSOPENMP) $(CPPFLAGSGDB) $(CPPFLAGSDEBUG) $(CPPFLAGSSTACK) $(OPENCV)
 	TARGET = .exe
 else
-	CPPFLAGS = $(CPPFLAGSOPENMP) $(CPPFLAGSGDB)
+	CPPFLAGS = $(CPPFLAGSOPENMP) $(CPPFLAGSGDB) $(CPPFLAGSC11)
 	TARGET =
 endif
 
 default: main.exe
 
-main.exe: main.cpp render.hpp scene.hpp object.hpp ray.hpp vec3.hpp utils.hpp polynome.hpp bezier.hpp texture.hpp Makefile
+test: main.cpp render.hpp scene.hpp object.hpp ray.hpp vec3.hpp utils.hpp polynome.hpp bezier.hpp texture.hpp hitpoint.hpp Makefile
+	$(CPP) -o main$(TARGET) main.cpp $(CPPFLAGS)
+	gdb main
+
+main.exe: main.cpp render.hpp scene.hpp object.hpp ray.hpp vec3.hpp utils.hpp polynome.hpp bezier.hpp texture.hpp hitpoint.hpp Makefile
 	$(CPP) -o main$(TARGET) main.cpp $(CPPFLAGS)
 
